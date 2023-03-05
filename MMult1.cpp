@@ -6,6 +6,7 @@
 #include "utils.h"
 
 #define BLOCK_SIZE 16
+#define index(i, j, N)  (i) + ((j)*(N))
 
 // Note: matrices are stored in column major order; i.e. the array elements in
 // the (m x n) matrix C are stored in the sequence: {C_00, C_10, ..., C_m0,
@@ -24,8 +25,59 @@ void MMult0(long m, long n, long k, double *a, double *b, double *c) {
   }
 }
 
+//Ref: https://en.wikipedia.org/wiki/Loop_nest_optimization
 void MMult1(long m, long n, long k, double *a, double *b, double *c) {
   // TODO: See instructions below
+  double acc00,acc01,acc10,acc11;
+  for (long ii = 0; ii < m; ii += BLOCK_SIZE)
+{
+    for (long kk = 0; kk < k; kk += BLOCK_SIZE)
+    {
+        for (long j = 0; j < n; j += 2)
+        {
+            for (long i = ii; i < ii + BLOCK_SIZE; i += 2)
+            {
+                // if (kk == 0)
+                // {
+                //   acc00 = acc01 = acc10 = acc11 = 0;
+                // }
+                // else
+                // {
+                    acc00 = c[index(i+0,j+0,m)]; 
+                    acc01 = c[index(i+0,j+1,m)]; 
+                    acc10 = c[index(i+1,j+0,m)]; 
+                    acc11 = c[index(i+1,j+1,m)]; 
+
+                    // acc00 = C[i + 0][j + 0];
+                    // acc01 = C[i + 0][j + 1];
+                    // acc10 = C[i + 1][j + 0];
+                    // acc11 = C[i + 1][j + 1];
+                // }
+                for (long p = kk; p < kk + BLOCK_SIZE; p++)
+                {      
+                  acc00 += b[index(p,j+0,k)] * a[index(i+0,p,m)];
+                  acc01 += b[index(p,j+1,k)] * a[index(i+0,p,m)];
+                  acc10 += b[index(p,j+0,k)] * a[index(i+1,p,m)];
+                  acc11 += b[index(p,j+1,k)] * a[index(i+1,p,m)];
+
+                  // acc00 += B[p][j + 0] * A[i + 0][p];
+	                // acc01 += B[p][j + 1] * A[i + 0][p];
+	                // acc10 += B[p][j + 0] * A[i + 1][p];
+	                // acc11 += B[p][j + 1] * A[i + 1][p];
+                }
+                c[index(i+0,j+0,m)]  = acc00;
+                c[index(i+0,j+1,m)]  = acc01;
+                c[index(i+1,j+0,m)]  = acc10;
+                c[index(i+1,j+1,m)]  = acc11;
+
+                // C[i + 0][j + 0] = acc00;
+                // C[i + 0][j + 1] = acc01;
+                // C[i + 1][j + 0] = acc10;
+                // C[i + 1][j + 1] = acc11;
+            }
+        }
+    }
+}
 }
 
 int main(int argc, char** argv) {
@@ -36,7 +88,8 @@ int main(int argc, char** argv) {
   printf(" Dimension       Time    Gflop/s       GB/s        Error\n");
   for (long p = PFIRST; p < PLAST; p += PINC) {
     long m = p, n = p, k = p;
-    long NREPEATS = 1e9/(m*n*k)+1;
+    // long NREPEATS = 1e9/(m*n*k)+1;
+    long NREPEATS = 2;
     double* a = (double*) aligned_malloc(m * k * sizeof(double)); // m x k
     double* b = (double*) aligned_malloc(k * n * sizeof(double)); // k x n
     double* c = (double*) aligned_malloc(m * n * sizeof(double)); // m x n
@@ -58,8 +111,8 @@ int main(int argc, char** argv) {
       MMult1(m, n, k, a, b, c);
     }
     double time = t.toc();
-    double flops = 0; // TODO: calculate from m, n, k, NREPEATS, time
-    double bandwidth = 0; // TODO: calculate from m, n, k, NREPEATS, time
+    double flops = double(m*n*k*2*NREPEATS)/time/1e9; // TODO: calculate from m, n, k, NREPEATS, time
+    double bandwidth = double((BLOCK_SIZE+1)*m*n*k*NREPEATS*2)/BLOCK_SIZE/time/1e9; // TODO: calculate from m, n, k, NREPEATS, time
     printf("%10ld %10f %10f %10f", p, time, flops, bandwidth);
 
     double max_err = 0;
