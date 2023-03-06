@@ -88,8 +88,7 @@ int main(int argc, char** argv) {
   printf(" Dimension       Time    Gflop/s       GB/s        Error\n");
   for (long p = PFIRST; p < PLAST; p += PINC) {
     long m = p, n = p, k = p;
-    // long NREPEATS = 1e9/(m*n*k)+1;
-    long NREPEATS = 2;
+    long NREPEATS = 1e9/(m*n*k)+1;
     double* a = (double*) aligned_malloc(m * k * sizeof(double)); // m x k
     double* b = (double*) aligned_malloc(k * n * sizeof(double)); // k x n
     double* c = (double*) aligned_malloc(m * n * sizeof(double)); // m x n
@@ -111,8 +110,8 @@ int main(int argc, char** argv) {
       MMult1(m, n, k, a, b, c);
     }
     double time = t.toc();
-    double flops = double(m*n*k*2*NREPEATS)/time/1e9; // TODO: calculate from m, n, k, NREPEATS, time
-    double bandwidth = double((BLOCK_SIZE+1)*m*n*k*NREPEATS*2)/BLOCK_SIZE/time/1e9; // TODO: calculate from m, n, k, NREPEATS, time
+    double flops = double(m*n*k*2*NREPEATS)/time/1e9; 
+    double bandwidth = double((BLOCK_SIZE+1)*m*n*k*NREPEATS*2)/BLOCK_SIZE/time/1e9; 
     printf("%10ld %10f %10f %10f", p, time, flops, bandwidth);
 
     double max_err = 0;
